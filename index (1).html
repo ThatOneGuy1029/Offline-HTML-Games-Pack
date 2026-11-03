@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Hub</title>
+<style>
+:root{--bg:#14161f;--panel:#1d2030;--line:#2c3047;--text:#eceff8;--dim:#9aa1bd;--accent:#ffc83d}
+@media (prefers-color-scheme:light){:root{--bg:#f3f4f9;--panel:#fff;--line:#d9dcea;--text:#171a2b;--dim:#5b6285;--accent:#c98a00}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:1.3rem;letter-spacing:.5px}
+#q{flex:1;min-width:200px;max-width:420px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:1rem}
+#q:focus,button:focus-visible,.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#count{color:var(--dim);font-size:.9rem}
+main{padding:20px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{all:unset;box-sizing:border-box;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.card:hover{border-color:var(--accent)}
+.tile{height:90px;display:grid;place-items:center;font-size:2rem;font-weight:700;color:#fff}
+.name{padding:10px 12px;font-size:.9rem;font-weight:600}
+#empty{color:var(--dim);padding:40px 0;display:none}
+#player{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:10}
+#bar{display:flex;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+#bar span{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;font-size:.95rem}
+button:hover{border-color:var(--accent)}
+iframe{flex:1;border:0;width:100%;background:#000}
+#note{color:var(--dim);font-size:.85rem;padding:6px 16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Game Hub</h1>
+  <input id="q" type="search" placeholder="Search games" aria-label="Search games" autocomplete="off">
+  <span id="count"></span>
+</header>
+<main>
+  <div id="grid"></div>
+  <p id="empty">No games match that search. Try a shorter word.</p>
+</main>
+<div id="player">
+  <div id="bar">
+    <button id="back">Back</button>
+    <span id="title"></span>
+    <button id="full">Fullscreen</button>
+  </div>
+  <div id="note">Big games can take a while to load the first time.</div>
+  <iframe id="frame" allowfullscreen allow="fullscreen; gamepad; autoplay"></iframe>
+</div>
+<script>
+// Game list: file names inside the offline/ folder (without extension).
+const HTM = new Set("bit-planes boxing-random cookie-clicker crossy-road dreadhead-parkour drift-boss drive-mad elastic-face moto-x3m monkey-mart paper-io-2 ragdoll-archers rooftop-snipers snow-rider snow-road soccer-random temple-run-2 time-shooter-3 tomb-of-the-mask vex-6 vex-7 vex-8".split(" "));
+const NAMES = `1-on-1-soccer 1-on-1-tennis 1.12 1.12_WASM 1.5 1.8 1.8_WASM 10-minutes-till-dawn 12-mini-battles 1v1.lol 2048-cupcakes 2048 3D-flight-simulator 3d-free-kick 8-ball-classic 9007199254740992 Alpha_1.2.6 Beta_1.3 Indev agar-io-lite age-of-war-2 age-of-war ages-of-conflict among-us angry-birds-showdown angry-birds-space angry-birds awesome-tanks-2 awesome-tanks backrooms bacon-may-die bad-ice-cream-2 bad-ice-cream-3 bad-ice-cream bad-parenting bad-piggies bad-time-simulator baldis-basics bank-robbery-2 bank-robbery-3 baseball-bros basket-bros basket-random basketball-legends basketball-stars big-ice-tower-tiny-square big-neon-tower-tiny-square big-tower-tiny-square-2 big-tower-tiny-square bit-planes bitlife blocky-snakes bloons-TD-2 bloons-TD-3 bloons-TD-4 bloons-TD-5 bloons-TD bloxorz blumgi-racers blumgi-rocket bob-the-robber-2 bob-the-robber-5 bob-the-robber bouncy-motors bow-masters boxel-rebound boxing-random breaking-the-bank bubble-shooter burrito-bison-launcha-libre candy-crush capybara-clicker car-drawing car-king-arena chaos-faction-2 chess choppy-orc circloO-2 circloO clash-of-vikings cleanup-io cluster-rush cookie-clicker coreball crazy-cars crazy-cattle-3D crazy-crash-landing crazy-motorcycle crossy-road cut-the-rope-2 cut-the-rope-holiday-gift cut-the-rope-time-travel cut-the-rope dadish-2 dadish-3 dadish deadly-descent death-chase death-run-3D demolition-derby-crash-racing doodle-jump draw-climber dreadhead-parkour drift-boss drift-hunters-pro drive-mad duck-life-2 duck-life-3 duck-life-4 duck-life-5 duck-life ducklings-io eagle-ride earn-to-die-2 earn-to-die eggy-car elastic-face escape-road-2 escape-road-3 escape-road escaping-the-prison eugenes-life evil-glitch fancy-pants-adventure-2 fancy-pants-adventure fireblob fireboy-and-watergirl-2 fireboy-and-watergirl-3 fireboy-and-watergirl-4 fireboy-and-watergirl flappy-bird fleeing-the-complex flood-runner-2 flood-runner-3 flood-runner-4 fnaf-2 fnaf-3 fnaf-4 fnaf-sister-location fnaf football-bros football-legends free-rider-3 friday-night-funkin fruit-ninja funny-battle-2 funny-battle funny-mad-racing funny-shooter-2 geometry-dash-lite geometry-dash geometry-vibes get-on-top getaway-shootout gladi-hoppers google-baseball google-dino granny-2 granny guess-their-answer hanger-2 happy-wheels helix-jump highway-traffic hill-climb-racing-lite hole-io house-of-hazards hover-racer-drive ice-dodo idle-breakout idle-dice infiltrating-the-airship iron-snout jacksmith jetpack-joyride johnny-trigger jumping-shell karate-bros kart-bros kittytoy learn-to-fly-2 learn-to-fly-3 learn-to-fly-idle learn-to-fly level-devil little-alchemy-2 madalin-stunt-cars-2 madness-project-nexus melon-playground merge-round-racers minesweeper monkey-mart monster-tracks motherload moto-x3m-2 moto-x3m-3 moto-x3m-pool-party moto-x3m-spooky-land moto-x3m-winter moto-x3m murder noob-miner openTTD opposite-day ovo-2 ovo-3-dimensions ovo pac-man papas-bakeria papas-burgeria papas-cheeseria papas-cupcakeria papas-donuteria papas-freezeria papas-hot-doggeria papas-pancakeria papas-pastaria papas-pizzeria papas-scooperia papas-sushiria papas-taco-mia papas-wingeria paper-io-2 parking-fury-2 parking-fury-3 parking-fury picos-school ping-pong-chaos pixel-speedrun plants-vs-zombies plonky polytrack poor-bunny pou ragdoll-archers ragdoll-hit ragdoll-soccer red-ball-4-vol-1 red-ball-4-vol-2 red-ball-4-vol-3 retro-bowl-college retro-bowl retro-highway retro-ping-pong riddle-school-2 riddle-school-3 riddle-school-4 riddle-school-5 riddle-school riddle-transfer-2 riddle-transfer rocket-soccer-derby rooftop-run rooftop-snipers-2 rooftop-snipers run-2 run-3 run sand-game sandbox-city short-life six-cats-under slope-2-player slope-3 slope slow-roads sm-63 sm-64 snail-bob-2 snail-bob-3 snail-bob-4 snail-bob-5 snail-bob-6 snail-bob-7 snail-bob-8 snail-bob snow-rider snow-road snowball-io soccer-bros soccer-random space-is-key-2 space-is-key space-waves spacebar-clicker speed-stars sprunki stack stacktris state-io stealing-the-diamond stick-archers-battle stick-fighter stick-merge stickman-hook subway-surfers-beijing subway-surfers-havana subway-surfers-san-francisco super-bike-the-champion super-liquid-soccer super-star-car superhot table-tennis-world-tour tag tanuki-sunset tap-road temple-of-boom temple-run-2 territorial-io tetrominoes the-impossible-quiz-2 the-impossible-quiz there-is-no-g they-are-coming this-is-the-only-level-too this-is-the-only-level time-shooter-2 time-shooter-3 tiny-fishing tomb-of-the-mask trap-the-cat trivia-crack tube-jumpers tunnel-rush unicycle-hero vex-4 vex-5 vex-6 vex-7 vex-8 vex-x3m-2 vex-x3m volley-random war-the-knights we-become-what-we-behold wheelie-bike wheely-2 wheely-3 wheely-4 wheely-5 wheely-6 wheely-7 wheely-8 wheely wordle-unlimited worlds-hardest-game-2 worlds-hardest-game-3 worlds-hardest-game wrestle-bros yohoho-io zombie-rush zrist`.split(/\s+/);
+
+const SPECIAL = {"1v1.lol":"1v1.LOL","bitlife":"BitLife","fnaf":"FNAF","pou":"Pou","openTTD":"OpenTTD","sm-63":"SM 63","sm-64":"SM 64","ovo-3-dimensions":"OvO 3 Dimensions","9007199254740992":"9007199254740992","bloons-TD":"Bloons TD","io":"io"};
+const SMALL = new Set(["of","the","to","and","vs","in","on"]);
+function pretty(n){
+  if (SPECIAL[n]) return SPECIAL[n];
+  return n.replace(/_/g," ").split("-").map((w,i)=>{
+    if (i>0 && SMALL.has(w)) return w;
+    if (w==="io") return ".io";
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  }).join(" ").replace(/ \.io/,".io");
+}
+const GAMES = [...new Set(NAMES)].map(n=>({
+  file: "offline/" + n + (HTM.has(n) ? ".htm" : ".html"),
+  title: pretty(n)
+})).sort((a,b)=>a.title.localeCompare(b.title));
+
+const grid = document.getElementById("grid"), q = document.getElementById("q");
+const count = document.getElementById("count"), empty = document.getElementById("empty");
+const player = document.getElementById("player"), frame = document.getElementById("frame");
+
+function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h;}
+function render(){
+  const term = q.value.trim().toLowerCase();
+  const list = GAMES.filter(g=>g.title.toLowerCase().includes(term));
+  grid.textContent = "";
+  for (const g of list){
+    const b = document.createElement("button");
+    b.className = "card";
+    const t = document.createElement("div");
+    t.className = "tile";
+    t.style.background = `hsl(${hue(g.title)} 45% 38%)`;
+    t.textContent = g.title.charAt(0);
+    const n = document.createElement("div");
+    n.className = "name";
+    n.textContent = g.title;
+    b.append(t,n);
+    b.onclick = ()=>open(g);
+    grid.append(b);
+  }
+  count.textContent = list.length + " of " + GAMES.length + " games";
+  empty.style.display = list.length ? "none" : "block";
+}
+function setHash(h){ try{ history.replaceState(null,"",h); }catch(e){} }
+function open(g){
+  document.getElementById("title").textContent = g.title;
+  frame.src = g.file;
+  player.style.display = "flex";
+  setHash("#"+encodeURIComponent(g.file));
+}
+function close(){
+  frame.src = "about:blank";
+  player.style.display = "none";
+  setHash("#");
+}
+document.getElementById("back").onclick = close;
+document.getElementById("full").onclick = ()=>frame.requestFullscreen && frame.requestFullscreen();
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && player.style.display==="flex" && !document.fullscreenElement) close(); });
+q.addEventListener("input",render);
+render();
+</script>
+</body>
+</html>
